@@ -1,0 +1,84 @@
+name: Polaris Scan for Advanced Users
+                                                                                                                                                                                                                                         
+on:
+  push:
+    branches: [main, master, develop, stage, release]
+  pull_request:
+    branches: [main, master, develop, stage, release]
+  
+permissions:
+  contents: read
+  security-events: write
+  
+jobs:
+  polaris-scan:
+    runs-on: [ ubuntu-latest ]
+    
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}/nodejs-npm
+
+    steps:
+    - name: Checkout Source
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'  
+   
+    - name: Install dependencies
+      run: npm install  
+
+    - name: Build Project
+      run: |
+        npm rebuild
+
+
+    - name: Polaris Full Scan
+      id: polaris-full-scan
+      if: ${{ github.event_name != 'pull_request' }}
+      uses: blackduck-inc/black-duck-security-scan@v2
+      
+      with:
+        ### SCANNING: Required fields
+        polaris_server_url: ${{ secrets.POLARIS_SERVER_URL }}
+        polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
+        polaris_assessment_types: "SAST,SCA"
+        polaris_application_name: ${{ github.event.repository.name }}
+        polaris_project_name: ${{ github.event.repository.name }}
+
+        ### SARIF report generation and upload
+        polaris_reports_sarif_create: true
+        polaris_reports_sarif_severities: "CRITICAL,HIGH"
+        polaris_reports_sarif_groupSCAIssues: true 
+        polaris_reports_sarif_issue_types: 'SCA, SAST'
+        polaris_upload_sarif_report: true
+
+        ### Passing Advanced parameters to Detect and Coverity
+        detect_search_depth: 3
+        coverity_clean_command: "npm cache clean --force"
+        coverity_build_command: "npm install"
+        
+        ### Mark build status if policy violating issues are found
+        mark_build_status: 'success'
+      
+    - name: Polaris PR Scan
+      id: polaris-pr-scan
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: blackduck-inc/black-duck-security-scan@v2
+      with:
+
+        ### SCANNING: Required fields
+        polaris_server_url: ${{ secrets.POLARIS_SERVER_URL }}
+        polaris_access_token: ${{ secrets.POLARIS_ACCESS_TOKEN }}
+        polaris_assessment_types: "SAST,SCA"
+        polaris_application_name: ${{ github.event.repository.name }}
+        polaris_project_name: ${{ github.event.repository.name }}
+
+        ### PULL REQUEST COMMENTS
+        polaris_prComment_enabled: true
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+
+        ### Mark build status if policy violating issues are found
+        mark_build_status: 'success'
