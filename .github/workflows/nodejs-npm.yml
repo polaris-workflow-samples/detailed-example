@@ -55,6 +55,8 @@ jobs:
         polaris_reports_sarif_issue_types: 'SCA, SAST'
         polaris_upload_sarif_report: true
 
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+
         ### Passing Advanced parameters to Detect and Coverity
         detect_search_depth: 3
         coverity_clean_command: "npm cache clean --force"
